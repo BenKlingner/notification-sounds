@@ -1,0 +1,7 @@
+Generated with the built-in image_gen tool.
+
+Use case: logo-brand
+Create a new, distinctly modern logo for an application called "Notification Sounds", with "for Paseo" underneath. The previous concept was rejected for being generic and dated: a large blue bell beside heavy rounded type. Redesign completely.
+Text verbatim: "Notification Sounds" and "for Paseo".
+Art direction: refined contemporary software identity, sophisticated Swiss typography, clean medium-weight sans serif, precise kerning, spacious proportions. Main title large and readable on two lines, small understated "for Paseo" beneath with comfortable separation. A compact abstract sonic mark to the left built from three or four carefully proportioned vertical rounded strokes suggesting a sound pulse, with one small notification dot integrated into the composition. Restrained monochrome charcoal lettering with a vivid violet accent on the mark. Balanced horizontal composition. Flat crisp vector-like finish, tasteful and distinctive.
+Actual transparent background. One finished logo only. No bell, no thick bubbly lettering, no gradients, no shadows, no 3D, no mockup, no decorative frame, no extra text. Keep ample transparent margin around the complete logo.

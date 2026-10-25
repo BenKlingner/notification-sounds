@@ -1,0 +1,16 @@
+{
+  "id": "notification-sounds",
+  "name": "Notification sounds",
+  "description": "Play a different sound for each agent event, using built-in sounds or your own files.",
+  "media": [
+    "assets/branding/notification-sounds-logo-gradient-tall.png",
+    "assets/screenshots/02-events-desktop.png",
+    "assets/screenshots/03-sound-picker-desktop.png",
+    "assets/screenshots/06-provider-rules-desktop.png",
+    "assets/screenshots/09-events-compact.png",
+    "assets/screenshots/10-about-dark-desktop.png"
+  ],
+  "requirements": {
+    "paseo": ">=0.13.0"
+  }
+}

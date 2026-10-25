@@ -1,0 +1,6 @@
+Generated with the built-in image_gen tool using notification-sounds-logo-v2.png as the edit target.
+
+Use case: precise-object-edit
+Edit target: the supplied approved Notification Sounds logo.
+Change only the transparent background to a refined soft luminous gradient flowing from pale lavender at the upper left through a subtle near-white center to cool pale sky blue at the lower right. Full-bleed opaque background, smooth and modern with no texture, objects, patterns or border.
+Preserve the existing logo exactly: violet three-bar sound-wave symbol and small dot, charcoal typography, exact letterforms, weight, kerning, proportions, placement, line breaks and scale. Text remains verbatim "Notification Sounds" with "for Paseo" underneath. Preserve the horizontal aspect ratio and comfortable margins. Keep the background sufficiently light for excellent contrast with the charcoal text and violet mark. No redesign, no shadows, no 3D, no added text. Deliver one finished flat logo image on the gradient background.

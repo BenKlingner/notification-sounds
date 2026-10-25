@@ -1,0 +1,17 @@
+node_modules/
+# Source library for the bundled sounds (large WAV files and analysis output).
+# Run scripts/bundle-sounds.mjs after changing it; the generated files are tracked.
+Sounds/
+# Private purchase records and screenshots containing personal project details.
+licenses/envato/
+assets/screenshots/04-sound-library-desktop.png
+assets/screenshots/07-project-rules-desktop.png
+# Local credentials and editor artifacts must never be published.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+.DS_Store

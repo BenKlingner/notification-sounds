@@ -1,0 +1,9 @@
+Generated with the built-in image_gen tool.
+
+Use case: logo-brand
+Asset type: finished reusable application logo with transparent background for Notification Sounds, a Paseo plugin that plays audio for agent events.
+Primary request: a polished, memorable logo combining a simple bell and sound-wave symbol with large, beautifully typeset text and a smaller subtitle underneath.
+Text (verbatim): "Notification Sounds" and underneath "for Paseo". No other text.
+Composition: one cohesive horizontal logo lockup, generous clear space, icon on the left and typography on the right. Main title can occupy two tightly spaced lines, Notification then Sounds, with for Paseo below in much smaller type. Large bold friendly geometric sans-serif typography, careful kerning, excellent legibility. Main title dominates.
+Style: crisp flat vector-like brand design, clean silhouette, restrained tasteful accent color, professional independent developer tool identity. Combine bell and two curved sound-wave strokes into one purposeful compact symbol. Solid dark typography for use on light backgrounds. Sharp edges and simple forms suitable for reproduction.
+Constraints: actual transparent alpha background, no backdrop, no mockup, no presentation board, no gradients, no shadows, no 3D, no extra decorations, no watermark. Output just one finished logo.
