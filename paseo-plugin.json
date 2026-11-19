@@ -2,6 +2,7 @@
   "id": "notification-sounds",
   "name": "Notification sounds",
   "description": "Play a different sound for each agent event, using built-in sounds or your own files.",
+  "icon": "assets/icon.png",
   "media": [
     "assets/branding/notification-sounds-logo-gradient-tall.png",
     "assets/screenshots/02-events-desktop.png",

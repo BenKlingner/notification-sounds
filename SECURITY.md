@@ -25,14 +25,23 @@ sandbox for untrusted users, plugins, or local processes.
   third-party network requests, telemetry endpoints, credentials, or secret storage.
   About-page links open GitHub only when selected; the logo is embedded and works offline.
 - External commands use fixed executables and argument arrays, without a shell.
-  D-Bus calls have time/output limits. Media holds expire, and only successfully
-  paused players are candidates for resuming.
+  D-Bus and desktop helper calls have time/output limits. Windows uses the system
+  Windows PowerShell 5.1 executable with a fixed script and JSON request data in
+  its environment; session identifiers are never interpolated into script code.
+  macOS uses a fixed JavaScript for Automation script with JSON arguments and an
+  allowlist of Music and Spotify. It requires the user's OS Automation permission.
+  Helper replies are schema-validated. Ambiguous Windows session IDs and Paseo's
+  own sessions are excluded. No global play/pause toggle is sent.
+  Media holds expire, and only players the plugin paused, or that report paused
+  right after a timed-out pause request, are candidates for resuming. Failed
+  resumes are retried a limited number of times. App identifiers do not distinguish every restart or manual playback
+  change, so resume ownership is best-effort.
 - Client audio caches and pending playback are bounded. Disposal cancels pending
   plugin work; Paseo owns cancellation of audio already handed to the host.
 - Missing or failed project context suppresses notifications when project rules
   exist, so a lookup failure cannot bypass a project mute.
 - React Native text rendering handles display strings. There is no HTML injection,
-  dynamic code evaluation, SQL, webhook, redirect, or browser cookie handling.
+  evaluation of user-supplied code, SQL, webhook, redirect, or browser cookie handling.
 
 ## Verification and remaining release checks
 
@@ -42,7 +51,8 @@ transition races. `npm run typecheck` validates the current Paseo API contract.
 The lockfile pins the development dependency tree; there are no production
 package dependencies. Run `npm audit` again when preparing a release.
 
-Tests use a mocked Paseo host and D-Bus transport. Live media-player behavior,
+Tests use a mocked Paseo host and OS transports; macOS scripts also execute against
+a simulated application interface. Native helper discovery runs on Windows/macOS. Live media-player behavior,
 macOS/Windows behavior, mobile playback, compact/wide layouts, and light/dark
 appearance still require manual release testing. Security checks do not establish
 rights to distribute assets: retain the recorded-sound permission separately and

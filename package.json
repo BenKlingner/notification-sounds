@@ -1,7 +1,7 @@
 {
   "name": "notification-sounds",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "files": [
     "paseo-plugin.json",
     "OVERVIEW.md",
@@ -17,6 +17,7 @@
     "shared/",
     "LICENSE",
     "README.md",
+    "assets/icon.png",
     "assets/branding/notification-sounds-logo-gradient-tall.png",
     "assets/screenshots/02-events-desktop.png",
     "assets/screenshots/03-sound-picker-desktop.png",

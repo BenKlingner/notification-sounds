@@ -1,13 +1,16 @@
 /// <reference types="node" />
 // Pauses other media on the daemon machine while a notification plays, then resumes it.
-// Linux only: talks to MPRIS players (browsers, Spotify, VLC, and most desktop players) over the
-// session D-Bus with `gdbus`, which ships with GLib on nearly every desktop.
+// Linux uses MPRIS; Windows and macOS use their desktop media adapters.
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { readlink } from "node:fs/promises";
 import type { RpcInput, RpcOutput } from "@getpaseo/plugin";
 import type { holdMediaRpc, mediaStatusRpc, releaseMediaRpc, renewMediaRpc } from "../shared/rpc";
 
+import { desktopMedia, desktopMediaHelp } from "./media-desktop";
+
+const desktop = process.platform === "win32" || process.platform === "darwin";
+const supported = desktop || process.platform === "linux";
 const MPRIS_PREFIX = "org.mpris.MediaPlayer2.";
 /** A hold that is never released (a client vanished mid-sound) expires after this long. */
 const HOLD_TIMEOUT_MS = 60_000;
@@ -16,9 +19,12 @@ const PAUSE_LEAD_MS = 350;
 /** Quiet gap after the last sound before media resumes; also keeps back-to-back sounds from
  *  resuming and re-pausing media in between. */
 const RESUME_DELAY_MS = 600;
+/** A slow or failed helper must not strand media, but a vanished player must not retry forever. */
+const MAX_RESUME_ATTEMPTS = 3;
 
 const holds = new Map<string, ReturnType<typeof setTimeout>>();
 const paused = new Set<string>();
+const resumeFailures = new Map<string, number>();
 let resumeTimer: ReturnType<typeof setTimeout> | null = null;
 let stopping = false;
 let cleanup: Promise<void> | null = null;
@@ -40,6 +46,7 @@ function gdbus(args: string[]): Promise<string> {
 }
 
 async function listPlayers(): Promise<string[]> {
+  if (desktop) return desktopMedia.listPlayers();
   const out = await gdbus([
     "--dest", "org.freedesktop.DBus",
     "--object-path", "/org/freedesktop/DBus",
@@ -59,6 +66,7 @@ async function isPaseo(name: string): Promise<boolean> {
 }
 
 async function playbackStatus(name: string): Promise<string | null> {
+  if (desktop) return desktopMedia.playbackStatus(name).catch(() => null);
   const out = await gdbus([
     "--dest", name,
     "--object-path", "/org/mpris/MediaPlayer2",
@@ -68,22 +76,46 @@ async function playbackStatus(name: string): Promise<string | null> {
   return out ? (/'(\w+)'/.exec(out)?.[1] ?? null) : null;
 }
 
-function control(name: string, method: "Pause" | "Play"): Promise<string> {
-  return gdbus(["--dest", name, "--object-path", "/org/mpris/MediaPlayer2", "--method", `org.mpris.MediaPlayer2.Player.${method}`]);
+async function control(name: string, method: "Pause" | "Play"): Promise<boolean> {
+  if (desktop) return desktopMedia.control(name, method);
+  await gdbus(["--dest", name, "--object-path", "/org/mpris/MediaPlayer2", "--method", `org.mpris.MediaPlayer2.Player.${method}`]);
+  return true;
+}
+
+function forget(name: string): void {
+  paused.delete(name);
+  resumeFailures.delete(name);
+}
+
+async function resumePlayer(name: string): Promise<void> {
+  try {
+    // Desktop helpers check for the paused state themselves, in the same process as Play.
+    if (!desktop) {
+      const status = await playbackStatus(name);
+      // Holds are reserved synchronously, even while this status query is pending.
+      if (holds.size) return;
+      if (status === null) throw new Error("Unknown playback status");
+      if (status !== "Paused") { forget(name); return; }
+    }
+    await control(name, "Play");
+    forget(name);
+  } catch {
+    const attempts = (resumeFailures.get(name) ?? 0) + 1;
+    resumeFailures.set(name, attempts);
+    if (attempts >= MAX_RESUME_ATTEMPTS) {
+      forget(name);
+      console.warn("[notification-sounds] Could not resume a media player.");
+    }
+  }
 }
 
 async function resumePaused(): Promise<void> {
-  if (holds.size) return;
-  await Promise.all([...paused].map(async name => {
-    const status = await playbackStatus(name);
-    // Holds are reserved synchronously, even while this status query is pending.
+  do {
     if (holds.size) return;
-    if (status === "Paused") {
-      try { await control(name, "Play"); }
-      catch { console.warn("[notification-sounds] Could not resume a media player."); }
-    }
-    paused.delete(name);
-  }));
+    await Promise.all([...paused].map(resumePlayer));
+    // Failures stay in `paused`. Attempts are capped, so this loop ends during cleanup.
+  } while (stopping && paused.size);
+  scheduleResume();
 }
 
 function scheduleResume(): void {
@@ -104,24 +136,30 @@ function releaseHold(token: string): void {
 }
 
 export function holdMedia(_input: RpcInput<typeof holdMediaRpc>): Promise<RpcOutput<typeof holdMediaRpc>> {
-  if (process.platform !== "linux" || stopping || holds.size >= 32) return Promise.resolve({ token: null, paused: 0 });
+  if (!supported || stopping || holds.size >= 32) return Promise.resolve({ token: null, paused: 0 });
   if (resumeTimer) { clearTimeout(resumeTimer); resumeTimer = null; }
   const token = randomUUID();
   holds.set(token, setTimeout(() => releaseHold(token), HOLD_TIMEOUT_MS));
   return enqueue(async () => {
     if (stopping || !holds.has(token)) return { token: null, paused: 0 };
-    // Bound simultaneous D-Bus processes and pause latency on unusually busy hosts.
+    // Bound simultaneous helper processes and pause latency on unusually busy hosts.
     const players = (await listPlayers().catch(() => [])).slice(0, 16);
     let count = 0;
     await Promise.all(players.map(async name => {
       if (paused.has(name) || (await playbackStatus(name)) !== "Playing" || stopping || !holds.has(token)) return;
+      let accepted: boolean;
       try {
-        await control(name, "Pause");
-        // Even when cleanup began during the command, record ownership so cleanup
-        // (queued behind this transition) can resume the player.
-        paused.add(name);
-        count++;
-      } catch { /* A failed pause does not confer ownership. */ }
+        accepted = await control(name, "Pause");
+      } catch {
+        // A timed-out command can still take effect. This player was playing just before
+        // the request, so if it is paused now, keep ownership and resume it later.
+        accepted = (await playbackStatus(name)) === "Paused";
+      }
+      if (!accepted) return;
+      // Even when cleanup began during the command, record ownership so cleanup
+      // (queued behind this transition) can resume the player.
+      paused.add(name);
+      count++;
     }));
     if (count && !stopping) await new Promise(resolve => setTimeout(resolve, PAUSE_LEAD_MS));
     if (stopping || !paused.size || !holds.has(token)) {
@@ -148,17 +186,17 @@ export async function renewMedia({ token }: RpcInput<typeof renewMediaRpc>): Pro
 }
 
 export async function mediaStatus(_input: RpcInput<typeof mediaStatusRpc>): Promise<RpcOutput<typeof mediaStatusRpc>> {
-  if (process.platform !== "linux") {
-    return { supported: false, players: 0, message: "Pausing media is only supported when Paseo runs on Linux." };
+  if (!supported) {
+    return { supported: false, players: 0, message: "Pausing media requires a Linux, Windows, or macOS host." };
   }
   try {
     const players = await listPlayers();
-    return { supported: true, players: players.length, message: null };
+    return { supported: true, players: players.length, message: desktop ? desktopMediaHelp : null };
   } catch {
     return {
       supported: false,
       players: 0,
-      message: "Could not reach the desktop session bus. Media control needs gdbus and a logged-in desktop.",
+      message: desktop ? `Could not access desktop media controls. ${desktopMediaHelp}` : "Could not reach the desktop session bus. Media control needs gdbus and a logged-in desktop.",
     };
   }
 }

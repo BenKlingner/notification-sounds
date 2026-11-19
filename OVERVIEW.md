@@ -33,10 +33,20 @@ Your own sounds live in the sound folder, `notification-sounds` inside the Paseo
 
 ## Pausing other media
 
-Turn on "Allow sounds to pause media" in the General tab to let notifications pause music and videos while they play, then resume them afterward. Turning it on reveals a switch for each event, on by default, so you can pause for "Agent finished" but not for "Agent failed", for example. These per-event choices apply to every project and provider; rules change only which sound plays. Players that were already paused are left alone. The plugin attempts to resume only players it successfully paused that are still paused afterward. It cannot distinguish every manual playback change made during a notification. Overlapping sounds share a pause; a disconnected client’s hold expires after one minute. It acts on the computer running the Paseo daemon and requires Linux, the `gdbus` command, a logged-in desktop session, and media players that support MPRIS, which includes most browsers, Spotify, and VLC. The setting shows how many media players it can see. Up to 16 players are controlled per notification. Media may remain paused while a sound waits behind other Paseo audio.
+Turn on "Allow sounds to pause media" in the General tab to let notifications pause music and videos while they play, then resume them afterward. Turning it on reveals a switch for each event, on by default, so you can pause for "Agent finished" but not for "Agent failed", for example. These per-event choices apply to every project and provider; rules change only which sound plays. Players that were already paused are left alone. The plugin attempts to resume only players it successfully paused that are still paused afterward. It cannot distinguish every manual playback change or player restart during a notification. Overlapping sounds share a pause; a disconnected client’s hold expires after one minute. It acts on the computer running the Paseo daemon, even when you listen to the notification on a different device. The setting shows how many supported media players it can see. Up to 16 players are controlled per notification. Media may remain paused while a sound waits behind other Paseo audio.
+
+- **Linux:** Requires `gdbus`, a logged-in desktop session, and MPRIS players, such as most browsers, Spotify, and VLC.
+- **Windows:** Requires Windows 10 version 1809 or later (including Windows 11), Windows PowerShell 5.1, and a logged-in desktop session. Controls apps that expose Windows media controls. If an app exposes multiple sessions with the same identifier, those sessions are skipped to avoid controlling the wrong one. With media pausing on, each notification starts several PowerShell processes first, so its sound can be delayed by a few seconds, or longer on a busy computer.
+- **macOS:** Supports the Apple Music and Spotify desktop apps. Allow Automation access when macOS asks to control them. If access was denied, review System Settings → Privacy & Security → Automation for the app hosting the Paseo daemon. Closed apps are not launched. Browser videos and other players are not supported.
+
+If media control is unavailable or denied, notification sounds still play. Windows and macOS support is new and has not been tested with real media players yet.
 
 ## Limits
 
 Requires Paseo 0.13.0 or later. Browsers may require a click or a sound preview before allowing audio. Custom audio is transferred from the daemon to the connected client for playback; the plugin does not send it to third-party services.
 
 Sounds play on every device where the Paseo app is open and connected to the host, including phones. Nothing plays while the app is closed or suspended. Settings are shared by every client of the host. Sounds are queued with other Paseo audio, such as voice playback, and play in order. Adding files by path and opening the sound folder act on the machine running the daemon.
+
+## Bug reports and feature requests
+
+Report a bug or request a feature on the [GitHub issues page](https://github.com/BenKlingner/notification-sounds/issues), which is also linked from the About tab. For bugs, include your Paseo version, operating system, and the steps that cause the problem. Reports from Windows and macOS are especially helpful for media pausing.

@@ -7,7 +7,7 @@ import { mediaStatusRpc } from "../../shared/rpc";
 import type { SoundSettingsPageProps } from "./common";
 
 const PAUSE_MEDIA_HINT =
-  "Pauses music and videos on the computer running Paseo while a sound plays, then resumes them. Choose the events below. Requires Linux, gdbus, and a logged-in desktop with MPRIS players such as browsers, Spotify, or VLC. Media also pauses while a sound waits in Paseo’s audio queue.";
+  "Pauses music and videos on the computer running Paseo while a sound plays, then resumes them. Choose the events below. Works with Linux media players. Windows media players, and Apple Music or Spotify on macOS, are also supported but have not been tested on real machines yet. Media also pauses while a sound waits in Paseo’s audio queue.";
 
 function usePauseMediaHint(enabled: boolean): string {
   const getStatus = useRpc(mediaStatusRpc);
@@ -15,12 +15,14 @@ function usePauseMediaHint(enabled: boolean): string {
     queryKey: ["notification-sounds", "media-status"],
     queryFn: () => getStatus({}),
     enabled,
+    // On Windows each check starts PowerShell, so focus changes must not repeat it constantly.
+    staleTime: 30_000,
     refetchOnWindowFocus: true,
   });
   if (!enabled || !status.data) return PAUSE_MEDIA_HINT;
   if (!status.data.supported) return `${PAUSE_MEDIA_HINT} ${status.data.message ?? "Not available on this host."}`;
-  const { players } = status.data;
-  return `${PAUSE_MEDIA_HINT} ${players === 0 ? "No media players are open right now." : `${players} media player${players === 1 ? "" : "s"} found.`}`;
+  const { players, message } = status.data;
+  return `${PAUSE_MEDIA_HINT} ${message ? `${message} ` : ""}${players === 0 ? "No supported media players are open right now." : `${players} media player${players === 1 ? "" : "s"} found.`}`;
 }
 
 const VOLUME_OPTIONS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map((value) => ({

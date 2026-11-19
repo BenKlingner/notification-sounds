@@ -76,3 +76,138 @@ test('lease renewal extends a live hold but cannot resurrect a released one', as
   assert.equal(f.status(), 'Playing');
   await f.media.releaseAllMedia();
 });
+
+for (const platform of ['darwin', 'win32']) {
+  test(`${platform}: pause and cleanup use desktop media control and respect rejected pauses`, async () => {
+    let state = 'Playing', accept = true;
+    const commands = [];
+    const media = loader({ './media-desktop': {
+      desktopMedia: {
+        listPlayers: async () => ['player'],
+        playbackStatus: async () => state,
+        control: async (_id, method) => {
+          commands.push(method);
+          if (!accept) return false;
+          state = method === 'Pause' ? 'Paused' : 'Playing';
+          return true;
+        },
+      },
+      desktopMediaHelp: 'Platform setup instructions',
+    } }, {
+      process: { ...process, platform },
+      setTimeout: (fn, ms) => { if (ms === 350) queueMicrotask(fn); return {}; },
+      clearTimeout: () => {},
+    })('server/media');
+    assert.equal((await media.mediaStatus({})).supported, true);
+    accept = false;
+    assert.equal((await media.holdMedia({})).token, null);
+    accept = true;
+    const first = await media.holdMedia({});
+    assert.equal(first.paused, 1);
+    const second = await media.holdMedia({});
+    assert.ok(second.token);
+    assert.equal(second.paused, 0);
+    await media.releaseAllMedia();
+    assert.equal(state, 'Playing');
+    assert.deepEqual(commands, ['Pause', 'Pause', 'Play']);
+  });
+}
+
+function desktopFixture(platform) {
+  const timers = [], commands = [];
+  const f = { state: 'Playing', statusFails: false, failNext: {}, commands, timers };
+  f.media = loader({ './media-desktop': {
+    desktopMedia: {
+      listPlayers: async () => ['player'],
+      playbackStatus: async () => { if (f.statusFails) throw new Error('helper timed out'); return f.state; },
+      control: async (_id, method) => {
+        commands.push(method);
+        const failure = f.failNext[method];
+        if (failure > 0) {
+          f.failNext[method]--;
+          if (f.applyBeforeFailing) f.state = 'Paused';
+          throw new Error('helper timed out');
+        }
+        f.state = method === 'Pause' ? 'Paused' : 'Playing';
+        return true;
+      },
+    },
+    desktopMediaHelp: 'Platform setup instructions',
+  } }, {
+    process: { ...process, platform },
+    console: { warn: () => {} },
+    setTimeout: (fn, ms) => { const timer = { fn, ms, cleared: false }; timers.push(timer); if (ms === 350) queueMicrotask(fn); return timer; },
+    clearTimeout: timer => { timer.cleared = true; },
+  })('server/media');
+  f.resume = async () => {
+    const timer = timers.findLast(t => t.ms === 600 && !t.cleared);
+    assert(timer, 'a resume should be scheduled');
+    timer.cleared = true; timer.fn(); await flush();
+  };
+  f.hasPendingResume = () => timers.some(t => t.ms === 600 && !t.cleared);
+  return f;
+}
+
+for (const platform of ['darwin', 'win32']) {
+  test(`${platform}: releasing the last hold resumes media even when status checks fail`, async () => {
+    const f = desktopFixture(platform);
+    const hold = await f.media.holdMedia({});
+    f.statusFails = true;
+    await f.media.releaseMedia({ token: hold.token });
+    await f.resume();
+    assert.equal(f.state, 'Playing');
+    assert.deepEqual(f.commands, ['Pause', 'Play']);
+  });
+
+  test(`${platform}: a failed resume is retried`, async () => {
+    const f = desktopFixture(platform);
+    const hold = await f.media.holdMedia({});
+    f.failNext.Play = 1;
+    await f.media.releaseMedia({ token: hold.token });
+    await f.resume();
+    assert.equal(f.state, 'Paused');
+    await f.resume();
+    assert.equal(f.state, 'Playing');
+    assert.equal(f.hasPendingResume(), false);
+  });
+
+  test(`${platform}: resume attempts stop after the limit`, async () => {
+    const f = desktopFixture(platform);
+    const hold = await f.media.holdMedia({});
+    f.failNext.Play = 99;
+    await f.media.releaseMedia({ token: hold.token });
+    await f.resume(); await f.resume(); await f.resume();
+    assert.deepEqual(f.commands, ['Pause', 'Play', 'Play', 'Play']);
+    assert.equal(f.hasPendingResume(), false);
+  });
+
+  test(`${platform}: cleanup retries a failed resume without waiting for a timer`, async () => {
+    const f = desktopFixture(platform);
+    await f.media.holdMedia({});
+    f.failNext.Play = 1;
+    await f.media.releaseAllMedia();
+    assert.equal(f.state, 'Playing');
+    assert.deepEqual(f.commands, ['Pause', 'Play', 'Play']);
+  });
+
+  test(`${platform}: a pause that times out but took effect is still resumed`, async () => {
+    const f = desktopFixture(platform);
+    f.failNext.Pause = 1; f.applyBeforeFailing = true;
+    const hold = await f.media.holdMedia({});
+    assert.equal(hold.paused, 1);
+    await f.media.releaseMedia({ token: hold.token });
+    await f.resume();
+    assert.equal(f.state, 'Playing');
+  });
+}
+
+test('linux: a failed status check during resume is retried', async () => {
+  const f = fixture(); const hold = await f.media.holdMedia({});
+  await f.media.releaseMedia({ token: hold.token });
+  const reply = f.delayStatus(); f.resume();
+  (await reply)(new Error('bus timeout')); await flush();
+  assert.equal(f.status(), 'Paused');
+  f.resume(); await flush();
+  assert.equal(f.status(), 'Playing');
+  assert.deepEqual(f.commands, ['Pause', 'Play']);
+});

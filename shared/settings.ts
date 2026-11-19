@@ -43,7 +43,7 @@ export const SoundSettingsSchema = z.object({
   volume: z.number().int().min(0).max(100).default(70),
   includeSubagents: z.boolean().default(false),
   /** Master switch: lets events pause other media on the daemon machine while their sound
-   *  plays (Linux). Each event opts in with its own `pauseMedia`. */
+   *  plays. Each event opts in with its own `pauseMedia`. */
   pauseMedia: z.boolean().default(false),
   /** Minimum gap between two sounds for the same event, so a burst of agents plays once. */
   cooldownMs: z.number().int().min(0).max(60_000).default(1500),

@@ -25,7 +25,7 @@ Open **Settings → Plugins → Notification sounds** to configure the plugin, o
 - Preview sounds, save favorites, and search the sound picker.
 - Set defaults by event, then override or mute individual projects and providers.
 - Adjust volume, repeat limits, and whether subagents play notifications.
-- Optionally pause and resume other media on Linux through MPRIS.
+- Optionally pause and resume media on Linux and Windows, or Apple Music and Spotify on macOS.
 - Use desktop and compact layouts, with colors that follow your Paseo theme.
 
 Sounds play on connected clients while Paseo is open. Settings are shared by clients connected
@@ -63,6 +63,14 @@ After changing package metadata or the approved logo, run `npm run generate:abou
 the updated `client/about-data.ts`. It embeds the About image so it works offline.
 The recorded-sound module is already generated and committed; rebuilding it requires the
 author's separately licensed source library and FFmpeg.
+
+For media-control changes, run `npm test` on each target OS. The native helper discovery test
+runs on Windows/macOS without changing playback. Then enable media pausing and verify a
+playing supported app pauses and resumes around a preview, an already-paused app stays
+paused, overlapping notifications share a pause, and unloading the plugin resumes media.
+On macOS, also check denied Automation permission and that closed apps remain closed.
+On Windows, check a player with Windows media controls and a browser with multiple sessions.
+Native Windows/macOS playback has not yet been verified from this Linux development host.
 
 For local testing, install the checkout and reload the plugin after source edits:
 
